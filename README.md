@@ -1,7 +1,7 @@
 # myoisst
 scripts and average oi-sst-ncdfs to show SST and SST anomalies in selected areas of the North Atlantic
 
-Set up in order to document and hopefully improve the genration of figures of SST and SST anomalies in the IESSNS (International Ecosystem Summer Survey in the Nordic Seas, sometimes referred to as the mackerel survey).
+Set up in order to document and hopefully improve the genration of figures of SST and SST anomalies in the area covered by the IESSNS (International Ecosystem Summer Survey in the Nordic Seas, sometimes referred to as the mackerel survey).
 
 Data from NOAA climate repositories previously at NCDC (National Climatic Data Center), now at NCEI (National Centers for Environmental Information)
 
