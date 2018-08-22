@@ -1,5 +1,6 @@
 library(ggplot2)
 library(raster)
+library(dplyr)
 
 ave <- raster("macArea/ave_m07.nc", varname = "sst")
 
@@ -75,6 +76,9 @@ print(
 
   mylev <- seq(-5, 5, by = 2)
   nlev <- length(mylev) - 1
+  
+d %>%
+  mutate(anomaly = round(anomaly)) -> d
   
 print(
   ggplot() +
