@@ -20,9 +20,7 @@ library(tidyverse)
 
 TODO: Include documentation of downloading from source. For now check the [nco-scripts directory](https://github.com/sigurdurthorjonsson/myoisst/tree/master/nco-scripts) on Ziggy's repo. 
 
-TODO2: Similar plots for May and June have been requested by members of the survey group.
-
-The rendered html result has been added to the repo in order to make it possible to see the results without running the this Rmd-file.
+TODO2: Similar plots for May and June have been requested by members of the survey group. A move of ncdf-files to the Hafró-ftp-server would then be natural.
 
 Read in data:
 ```{r import}
