@@ -1,0 +1,165 @@
+---
+title: "SST encounters tidyverse"
+subtitle: "Some doodle for PGNAPES"
+author: "Ziggy and the Spider"
+output: 
+  html_document: 
+    fig_height: 7.0
+    fig_width: 9.5
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+```
+
+```{r}
+library(raster)
+library(tidyverse)
+# devtools::install_github("einarhjorleifsson/gisland", dependencies = FALSE)
+```
+
+TODO: Include documentation of downloading from source. For now check the [nco-scripts directory](https://github.com/sigurdurthorjonsson/myoisst/tree/master/nco-scripts) on Ziggy's repo.
+
+Read in data:
+```{r import}
+years <- 2010:2018
+
+# seeding
+res <- list()
+
+# stack the hay
+for(i in seq(along = years)) {
+  res[[i]] <- 
+    raster(paste("macArea", years[i], 
+                 "m07.nc", sep = "/"), varname = "sst") %>% 
+    # User can change spatial resolution of temperature grid in the next step.
+    #  Higher values mean faster plot rendering.
+    aggregate(fac = 2) %>% 
+    as("SpatialPixelsDataFrame") %>% 
+    as.data.frame() %>% 
+    as_tibble() %>% 
+    rename(sst = Daily.sea.surface.temperature) %>% 
+    mutate(year = years[i])
+}
+
+# bind the hay
+d <-
+  res %>% 
+  bind_rows()
+```
+
+What have we got?:
+```{r}
+glimpse(d)
+```
+
+
+Get a background map of terrestrial reference areas:
+```{r map}
+m <- map_data("world", xlim = c(-50, 50), ylim = c(30, 85))
+```
+
+The sst plot (Be patient, takes some time to render. Or worse, if you got a lousy computer you will have a meltdown. In that case ask your boss for a real a computer that can do some modern day number crunching):
+```{r sstplot}
+# Find plot range
+xlim <- range(d$x)
+ylim <- range(d$y)
+
+# The number of "steps" in the rainbow:
+nlev <- d$sst %>% floor() %>% unique() %>% length()
+
+d %>% 
+  ggplot() +
+  theme_bw() +
+  geom_tile(aes(x=x, y=y, fill=sst), alpha=0.8) +
+  scale_fill_gradientn(colours = rainbow(nlev)) +
+  geom_polygon(data = m, aes(long, lat, group = group), fill = "grey") +
+  coord_map(projection = "azequalarea",
+            xlim = xlim, ylim = ylim) + 
+  scale_x_continuous(name = NULL, breaks = NULL) +
+  scale_y_continuous(name = NULL, breaks = NULL) +
+  labs(title = "July - average SST",
+       fill = "Celcius") +
+  facet_wrap(~ year)
+```
+
+Calculate annual anomalies by "square":
+```{r calcanomalies}
+d <- 
+  d %>% 
+  group_by(x, y) %>% 
+  mutate(anomaly = sst - mean(sst)) %>% 
+  ungroup()
+```
+
+
+Check the anomaly distribution:
+```{r distribution}
+d %>% 
+  mutate(anomaly = gisland::grade(anomaly, 0.5)) %>% 
+  group_by(year, anomaly) %>% 
+  count() %>% 
+  ggplot(aes(anomaly, n)) +
+  geom_col() +
+  facet_wrap(~ year)
+```
+
+Anomalies beyond c(-3, 3) are all but extremes (at least at the aggregation of 2 on the raw data), hence for the plotting lets trim the extremes:
+```{r trimming}
+amin <- -3
+amax <- 3
+d <-
+  d %>% 
+  # "Trim" the exremes, used in the plotting
+  mutate(a.plot = case_when(anomaly < amin ~ amin,
+                       anomaly > amax ~ amax,
+                       TRUE ~ anomaly),
+         a.plot = gisland::grade(a.plot, 0.5))
+```
+
+And the anomaly plot (again, be patient, takes some time to render):
+```{r anomalyplot}
+d %>%
+  ggplot() +
+  # lets keep the default theme, shows the extent of the data
+  #theme_bw() +
+  geom_tile(aes(x=x, y=y, fill= round(anomaly)), alpha=0.8) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red",
+                       midpoint = 0, limits = c(-3, 3),
+                       breaks = seq(-3, 3, by = 0.5),
+                       guide = "legend") +
+  geom_polygon(data = m, aes(long, lat, group = group), fill = "grey") +
+  coord_map(projection = "azequalarea", xlim = xlim, ylim = ylim) + 
+  scale_x_continuous(name = NULL, breaks = NULL) +
+  scale_y_continuous(name = NULL, breaks = NULL) +
+  labs(title = "July SST anomaly",
+       fill = "Anomaly +/- 0.25") +
+  facet_wrap(~ year)
+```
+
+And just a little sanity check on values vs colours:
+```{r sanitycheck}
+amin <- -5
+amax <-  5
+set.seed(314) # for the love of pi
+d <- 
+  expand.grid(x = 1:10,
+              y = 1:10) %>% 
+  as_tibble() %>% 
+  mutate(z = runif(n(), -1, 10),
+         anomaly = z - mean(z),
+         a.plot = case_when(anomaly < amin ~ amin,
+                            anomaly > amax ~ amax,
+                            TRUE ~ anomaly),
+         a.plot = gisland::grade(a.plot, 0.5))
+d %>% 
+  ggplot() +
+  theme_bw() +
+  geom_tile(aes(x = x, y = y, fill = a.plot)) +
+  geom_text(aes(x = x, y = y, label = round(anomaly, 2))) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red",
+                       midpoint = 0, limits = c(-5, 5),
+                       breaks = seq(-5, 5, by = 0.5),
+                       guide = "legend")
+```
+
